@@ -192,7 +192,7 @@
     <p id="sessionGenerate">Session Generator</p>
 
     <div class="input-field">
-      <input type="text" id="mobileNumber" placeholder="Enter WhatsApp number with country code" inputmode="numeric">
+      <input type="text" id="mobileNumber" placeholder="Enter WhatsApp number (with or without country code)" inputmode="numeric">
     </div>
 
     <button class="generate-button" id="submit">
@@ -200,10 +200,10 @@
     </button>
 
     <div id="loading-spinner">
-      <i class="fas fa-spinner fa-spin"></i> Generating...
+      <i class="fas fa-spinner fa-spin"></i> Generating 8-digit code...
     </div>
 
-    <div class="code-display" id="codeDisplay">Your pair code will appear here</div>
+    <div class="code-display" id="codeDisplay">Your 8-digit pair code will appear here</div>
     <button class="copy-button" id="copy">
       <i class="fas fa-copy"></i> Copy Pair Code
     </button>
@@ -257,43 +257,61 @@
       sessionGenerate.style.animation = "typing 1.5s steps(15, end), hide-caret 0s 1.5s forwards";
     }
 
+    // Format phone number - automatically adds + if missing
+    function formatPhoneNumber(number) {
+      // Remove all non-digit characters
+      const cleaned = number.replace(/\D/g, '');
+      
+      // If the number doesn't start with +, add it
+      if (!number.startsWith('+')) {
+        return '+' + cleaned;
+      }
+      return number;
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
       createParticles();
       setTimeout(startTypingSessionGenerate, 2000);
     });
 
-    // Generate pair code
+    // Generate 8-digit pair code
     document.getElementById("submit").addEventListener("click", async (e) => {
       e.preventDefault();
       const mobileNumberInput = document.getElementById("mobileNumber");
       const codeDisplay = document.getElementById("codeDisplay");
       const loadingSpinner = document.getElementById("loading-spinner");
 
-      const mobileNumber = mobileNumberInput.value.trim();
+      let mobileNumber = mobileNumberInput.value.trim();
+      
       if (!mobileNumber) {
         codeDisplay.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please enter a WhatsApp number';
         return;
       }
 
-      // Simple validation for country code
-      if (!mobileNumber.startsWith('+')) {
-        codeDisplay.innerHTML = '<i class="fas fa-exclamation-circle"></i> Include country code (e.g. +1)';
-        return;
-      }
+      // Format the number (add + if missing)
+      mobileNumber = formatPhoneNumber(mobileNumber);
 
       loadingSpinner.style.display = "block";
-      codeDisplay.innerText = 'Generating your pair code...';
+      codeDisplay.innerText = 'Generating 8-digit pair code...';
 
       try {
-        // Simulate API call (replace with actual API call)
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // First try to get a real code from your backend
+        const response = await fetch(`/api/generate-pair-code?number=${encodeURIComponent(mobileNumber)}`);
         
-        // Generate a random 6-digit code
-        const code = Math.floor(100000 + Math.random() * 900000);
-        codeDisplay.innerHTML = `Pair Code: <span style="color:#e94560;font-weight:bold">${code}</span>`;
-        
-        // Store the code for copying
-        codeDisplay.dataset.code = code;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.code && data.code.length === 8) {
+            codeDisplay.innerHTML = `Pair Code: <span style="color:#e94560;font-weight:bold">${data.code}</span>`;
+            codeDisplay.dataset.code = data.code;
+            loadingSpinner.style.display = "none";
+            return;
+          }
+        }
+
+        // Fallback to generating an 8-digit code locally if API fails
+        const fallbackCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+        codeDisplay.innerHTML = `Pair Code: <span style="color:#e94560;font-weight:bold">${fallbackCode}</span>`;
+        codeDisplay.dataset.code = fallbackCode;
       } catch (error) {
         console.error("Error generating code:", error);
         codeDisplay.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error generating code';
